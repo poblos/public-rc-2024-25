@@ -19,7 +19,7 @@ from planners import FixedPathPlanner, RandomPathPlanner
 
 
 SIM_TIME = 4500
-RANDOM_PLANNER = 1
+RANDOM_PLANNER = 0
 
 
 if RANDOM_PLANNER:
@@ -34,6 +34,11 @@ else:
         [-0.3, 0.7, 0.4], [-1, -1, .5], [0.8, 0.4, 1.7], [1, 1, 1.5]
         ] # [x, y, z] positions
     fixed_yaw_targets = [30, -45, 0, 0, 0, 0, 0, 0] # degrees
+    # fixed_pos_targets = [
+    #     [1, 0, 1], [1, 0, 1], [1, 1, 1], [1, -1, 0.2],
+    #     [-0.3, 0.7, 0.4], [-1, -1, .5], [0.8, 0.4, 1.7], [1, 1, 1.5]
+    #     ] # [x, y, z] positions
+    # fixed_yaw_targets = [0, 0, 0, 0, 0, 0, 0, 0] # degrees
     fixed_time_stamps = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000] # when the next target is set
 
     planner = FixedPathPlanner(
@@ -49,21 +54,36 @@ if __name__ == '__main__':
 
     # TODO: Design PID control
     pid_roll = PID(
-        gain_prop = 0, gain_int = 0, gain_der = 0,
-        sensor_period = model.opt.timestep, output_limits=(-100, 100)
+        gain_prop = -5e-1, gain_int = 0, gain_der = -5e-2,
+        sensor_period = model.opt.timestep, output_limits=(-1.1, 1.1)
     )
 
     pid_pitch = PID(
-        gain_prop = 0, gain_int = 0, gain_der = 0,
-        sensor_period = model.opt.timestep, output_limits=(-100, 100)
+        gain_prop = -5e-1, gain_int = 0, gain_der = -5e-2,
+        sensor_period = model.opt.timestep, output_limits=(-1.1, 1.1)
     )
 
     pid_yaw = PID(
-        gain_prop = 0, gain_int = 0, gain_der = 0,
-        sensor_period = model.opt.timestep, output_limits=(-100, 100)
+        gain_prop = -7e-1, gain_int = 0, gain_der = -4e-1,
+        sensor_period = model.opt.timestep, output_limits=(-1, 1)
     )
-    # END OF TODO
 
+    pid_z = PID(
+        gain_prop = 7, gain_int = 0, gain_der = 4,
+        sensor_period = model.opt.timestep, output_limits=(-1, 1)
+    )
+
+    pid_x = PID(
+        gain_prop = 1, gain_int = 0, gain_der = 3,
+        sensor_period = model.opt.timestep, output_limits=(-10, 10)
+    )
+
+    pid_y = PID(
+        gain_prop = -1, gain_int = 0, gain_der = -4,
+        sensor_period = model.opt.timestep, output_limits=(-10, 10)
+    )
+
+    # END OF MY CODE
     for i in range(SIM_TIME):
         current_pos, previous_pos = drone_simulator.position_sensor()
         current_orien, previous_orien = drone_simulator.orientation_sensor()
@@ -71,15 +91,20 @@ if __name__ == '__main__':
         pos_target, yaw_target = planner.get_targets(i)
 
         # TODO: use PID controllers to steer the drone
-        desired_thrust = 3.2496
+        base_thrust = 3.2496
+        desired_thrust = base_thrust + pid_z.output_signal(pos_target[2], [current_pos[2], previous_pos[2]])
 
-        desired_roll = 0
-        desired_pitch = 0
+        desired_pitch = pid_x.output_signal(pos_target[0], [current_pos[0], previous_pos[0]])
+        desired_roll = pid_y.output_signal(pos_target[1], [current_pos[1], previous_pos[1]])
         desired_yaw = yaw_target
+
+        print(f'x force{desired_pitch:0.2f}, y force{desired_roll:0.2f}, z force{desired_thrust:0.2f}')
 
         roll_thrust = pid_roll.output_signal(desired_roll, [current_orien[0], previous_orien[0]])
         pitch_thrust = pid_pitch.output_signal(desired_pitch, [current_orien[1], previous_orien[1]])
         yaw_thrust = -pid_yaw.output_signal(desired_yaw, [current_orien[2], previous_orien[2]])
+
+
         # END OF TODO
 
         data = np.array([pos_target + [desired_roll, desired_pitch, desired_yaw], np.concat([current_pos, current_orien])]).T

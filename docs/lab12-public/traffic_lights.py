@@ -26,13 +26,17 @@ def sim_step(forward, turn, steps=1, view=False):
 
 def car_control(gain_prop, gain_int, gain_der):
     # TODO: if needed, add additional variables here
-
+    prev_error = 0
+    acc_error = 0
     # Increase the number of iterations for longer simulation
     for _ in range(4000):
         # TODO: implement PID controller
         error_prop = data.body("car").xpos[1] - data.body("traffic_light_gate").xpos[1]
+        error_der = (error_prop - prev_error) / model.opt.timestep
 
-        forward_torque = gain_prop * error_prop
+        forward_torque = gain_prop * error_prop + gain_der * error_der + gain_int * acc_error
+        prev_error = error_prop
+        acc_error += error_prop * model.opt.timestep
         # Your code ends here
 
         sim_step(forward_torque, 0, steps=1, view=True)
@@ -40,4 +44,4 @@ def car_control(gain_prop, gain_int, gain_der):
     viewer.close()
 
 if __name__ == '__main__':
-    car_control(gain_prop = -1, gain_int = 0, gain_der = 0)
+    car_control(gain_prop = -5, gain_int = -0.23, gain_der = -10)
