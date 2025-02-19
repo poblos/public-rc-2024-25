@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     # TODO: Set appropriate gains for the altitude PID controller
     pid_altitude = PID(
-        gain_prop = 0, gain_int = 0, gain_der = 0,
+        gain_prop = 3, gain_int = 2, gain_der = 1.5,
         sensor_period = drone_simulator.altitude_sensor_period
         )
 
